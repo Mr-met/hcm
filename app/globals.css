@@ -35,6 +35,13 @@ body,.brand strong,.hero h1,.card-heading h2,.question-card h3,.keyword b,.empty
 .keyword>button { margin-left:auto;border:0;background:#a90009;color:#fff;padding:9px 13px;border-radius:4px;font-size:10px;font-weight:900;white-space:nowrap; }
 .reveal-answer { margin-top:28px;width:100%;border:0;background:#a90009;color:#fff;padding:15px;font-weight:900;letter-spacing:1.2px;box-shadow:inset 0 -3px 0 #710006; }
 .reveal-answer:hover { background:#c51119; }
+.word-row { padding-right:76px; }
+.hint-button { position:absolute;right:33px;width:27px;height:27px;display:grid;place-items:center;border-radius:50%;background:#fff2a9;border:1px solid #dcad12;font-size:15px;filter:grayscale(1);transition:.18s; }
+.hint-button:hover { filter:none;transform:scale(1.12);background:#ffe05b; }
+.hint-button.used { filter:none;background:#ffe05b;cursor:default; }
+.word-row.revealed .hint-button { opacity:.38; }
+.cells i.hinted-cell:not(.key-cell) { background:#fff0a2;color:#8d090f;box-shadow:inset 0 0 0 2px #e8b20b;animation:hintPop .35s both; }
+@keyframes hintPop { 0%{transform:scale(.5)} 75%{transform:scale(1.12)} 100%{transform:scale(1)} }
 /* Ô giao nhau phải luôn giữ nền đỏ để chữ khóa không bị chìm vào nền hàng ngang. */
 .word-row.revealed .cells i.key-cell:not(.blank),
 .word-row.active .cells i.key-cell:not(.blank) {

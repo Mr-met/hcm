@@ -61,6 +61,7 @@ export default function Home() {
   const [active, setActive] = useState<number | null>(null);
   const [revealedRows, setRevealedRows] = useState<Set<number>>(new Set());
   const [verticalRevealed, setVerticalRevealed] = useState(false);
+  const [hints, setHints] = useState<Record<number, number[]>>({});
   const game = SETS[setId];
   const [order, setOrder] = useState(() => SETS["7"].questions.map((_, i) => i));
   const maxLeft = useMemo(() => Math.max(...game.questions.map(q => q.key - 1)), [game]);
@@ -72,6 +73,19 @@ export default function Home() {
   const revealActive = () => {
     if (active === null) return;
     setRevealedRows(prev => new Set(prev).add(active));
+  };
+
+  const showHint = (questionIndex: number) => {
+    if (revealedRows.has(questionIndex) || hints[questionIndex]) return;
+    const q = game.questions[questionIndex];
+    const available = q.answer.split("").map((_, i) => i).filter(i => i !== q.key - 1);
+    const [min, max] = q.answer.length <= 7 ? [1, 2] : q.answer.length <= 9 ? [2, 3] : [3, 4];
+    const count = Math.min(available.length, min + Math.floor(Math.random() * (max - min + 1)));
+    for (let i = available.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [available[i], available[j]] = [available[j], available[i]];
+    }
+    setHints(prev => ({ ...prev, [questionIndex]: available.slice(0, count) }));
   };
 
   const shuffleRows = () => {
@@ -88,7 +102,7 @@ export default function Home() {
   };
 
   const reset = (next = setId) => {
-    setSetId(next); setActive(null); setRevealedRows(new Set()); setVerticalRevealed(false);
+    setSetId(next); setActive(null); setRevealedRows(new Set()); setVerticalRevealed(false); setHints({});
     setOrder(SETS[next].questions.map((_, i) => i));
   };
 
@@ -118,8 +132,9 @@ export default function Home() {
                 <span className="number">{i + 1}</span>
                 <span className="cells" style={{ gridTemplateColumns: `repeat(${maxLeft + 1 + q.answer.length - q.key}, var(--cell))` }}>
                   {Array.from({ length: maxLeft - (q.key - 1) }).map((_, k) => <i className="blank" key={`b${k}`} />)}
-                  {q.answer.split("").map((letter, k) => <i key={k} className={k === q.key - 1 ? "key-cell" : ""}>{revealedRows.has(i) || (verticalRevealed && k === q.key - 1) ? letter : ""}</i>)}
+                  {q.answer.split("").map((letter, k) => <i key={k} className={`${k === q.key - 1 ? "key-cell" : ""} ${hints[i]?.includes(k) ? "hinted-cell" : ""}`}>{revealedRows.has(i) || hints[i]?.includes(k) || (verticalRevealed && k === q.key - 1) ? letter : ""}</i>)}
                 </span>
+                <span className={`hint-button ${hints[i] ? "used" : ""}`} role="button" tabIndex={0} title={hints[i] ? "Đã dùng gợi ý" : "Mở gợi ý"} aria-label={`Gợi ý câu ${i + 1}`} onClick={e => { e.stopPropagation(); showHint(i); }} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); showHint(i); } }}>💡</span>
                 {revealedRows.has(i) && <span className="check">✓</span>}
               </button>
             )})}
