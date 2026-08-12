@@ -79,8 +79,7 @@ export default function Home() {
     if (revealedRows.has(questionIndex) || hints[questionIndex]) return;
     const q = game.questions[questionIndex];
     const available = q.answer.split("").map((_, i) => i).filter(i => i !== q.key - 1);
-    const [min, max] = q.answer.length <= 7 ? [1, 2] : q.answer.length <= 9 ? [2, 3] : [3, 4];
-    const count = Math.min(available.length, min + Math.floor(Math.random() * (max - min + 1)));
+    const count = Math.min(available.length, q.answer.length <= 7 ? 2 : q.answer.length <= 9 ? 3 : 4);
     for (let i = available.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [available[i], available[j]] = [available[j], available[i]];
