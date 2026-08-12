@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 type Question = { clue: string; answer: string; key: number };
 
@@ -40,55 +40,22 @@ const SETS: Record<"7" | "14", { title: string; keyword: string; questions: Ques
   },
 };
 
-const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/gi, "d").replace(/[^a-z]/gi, "").toUpperCase();
-
 export default function Home() {
   const [setId, setSetId] = useState<"7" | "14">("7");
   const [active, setActive] = useState<number | null>(null);
-  const [solved, setSolved] = useState<Set<number>>(new Set());
-  const [expired, setExpired] = useState<Set<number>>(new Set());
-  const [answer, setAnswer] = useState("");
-  const [seconds, setSeconds] = useState(45);
-  const [message, setMessage] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [revealedRows, setRevealedRows] = useState<Set<number>>(new Set());
+  const [verticalRevealed, setVerticalRevealed] = useState(false);
   const game = SETS[setId];
   const maxLeft = useMemo(() => Math.max(...game.questions.map(q => q.key - 1)), [game]);
 
-  useEffect(() => {
-    if (active === null || solved.has(active) || expired.has(active)) return;
-    const timer = window.setInterval(() => setSeconds(s => s - 1), 1000);
-    return () => window.clearInterval(timer);
-  }, [active, solved, expired]);
-
-  useEffect(() => {
-    if (seconds > 0 || active === null || solved.has(active) || expired.has(active)) return;
-    setExpired(prev => new Set(prev).add(active));
-    setMessage(`Hết giờ! Đáp án là ${game.questions[active].answer}.`);
-  }, [seconds, active, game, solved, expired]);
-
   const choose = (index: number) => {
-    setActive(index); setAnswer(""); setSeconds(45);
-    setMessage(solved.has(index) ? "Câu này đã được giải chính xác." : expired.has(index) ? `Đáp án: ${game.questions[index].answer}` : "");
-    window.setTimeout(() => inputRef.current?.focus(), 50);
+    setActive(index);
+    setRevealedRows(prev => new Set(prev).add(index));
   };
 
   const reset = (next = setId) => {
-    setSetId(next); setActive(null); setSolved(new Set()); setExpired(new Set()); setAnswer(""); setSeconds(45); setMessage("");
+    setSetId(next); setActive(null); setRevealedRows(new Set()); setVerticalRevealed(false);
   };
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (active === null || solved.has(active) || expired.has(active)) return;
-    if (normalize(answer) === game.questions[active].answer) {
-      setSolved(prev => new Set(prev).add(active));
-      setMessage("Chính xác! Ô chữ đã được mở.");
-    } else {
-      setMessage("Chưa đúng, hãy thử lại nhé!");
-    }
-  };
-
-  const completed = solved.size === game.questions.length;
-  const revealed = (i: number) => solved.has(i) || expired.has(i);
 
   return (
     <main className="app-shell">
@@ -102,45 +69,37 @@ export default function Home() {
       </header>
 
       <section className="hero">
-        <div><span className="eyebrow">THỬ THÁCH KIẾN THỨC</span><h1>Giải mã tinh thần<br/><em>Đại đoàn kết</em></h1><p>Chọn một hàng ngang, đọc gợi ý và tìm đáp án trong 45 giây.</p></div>
+        <div><span className="eyebrow">THỬ THÁCH KIẾN THỨC</span><h1>Giải mã tinh thần<br/><em>Đại đoàn kết</em></h1><p>Bấm hàng ngang để mở đáp án, bấm cột đỏ để mở từ khóa.</p></div>
         <img src="/quoc-khanh.png" alt="Chào mừng Quốc khánh 2 tháng 9" />
       </section>
 
       <section className="game-layout">
         <div className="board-card">
-          <div className="card-heading"><div><span>BẢNG Ô CHỮ</span><h2>{game.title}</h2></div><div className="progress"><strong>{solved.size}/{game.questions.length}</strong><small>đã giải</small></div></div>
+          <div className="card-heading"><div><span>BẢNG Ô CHỮ</span><h2>{game.title}</h2></div><div className="progress"><strong>{revealedRows.size}/{game.questions.length}</strong><small>đã mở</small></div></div>
           <div className="crossword" style={{ "--left": maxLeft } as React.CSSProperties}>
             {game.questions.map((q, i) => (
-              <button key={q.clue} className={`word-row ${active === i ? "active" : ""} ${revealed(i) ? "revealed" : ""}`} onClick={() => choose(i)} aria-label={`Câu ${i + 1}, ${q.answer.length} ô`}>
+              <button key={q.clue} className={`word-row ${active === i ? "active" : ""} ${revealedRows.has(i) ? "revealed" : ""}`} onClick={() => choose(i)} aria-label={`Mở đáp án hàng ngang câu ${i + 1}`}>
                 <span className="number">{i + 1}</span>
                 <span className="cells" style={{ gridTemplateColumns: `repeat(${maxLeft + 1 + q.answer.length - q.key}, var(--cell))` }}>
                   {Array.from({ length: maxLeft - (q.key - 1) }).map((_, k) => <i className="blank" key={`b${k}`} />)}
-                  {q.answer.split("").map((letter, k) => <i key={k} className={k === q.key - 1 ? "key-cell" : ""}>{revealed(i) ? letter : ""}</i>)}
+                  {q.answer.split("").map((letter, k) => <i key={k} className={k === q.key - 1 ? "key-cell" : ""} onClick={k === q.key - 1 ? e => { e.stopPropagation(); setVerticalRevealed(true); } : undefined}>{revealedRows.has(i) || (verticalRevealed && k === q.key - 1) ? letter : ""}</i>)}
                 </span>
-                {solved.has(i) && <span className="check">✓</span>}
+                {revealedRows.has(i) && <span className="check">✓</span>}
               </button>
             ))}
           </div>
-          <div className={`keyword ${completed ? "complete" : ""}`}><span>TỪ KHÓA</span><div>{game.keyword.split("").map((c, i) => <b key={i}>{solved.has(i) || completed ? c : "?"}</b>)}</div></div>
+          <button className={`keyword ${verticalRevealed ? "complete" : ""}`} onClick={() => setVerticalRevealed(true)}><span>TỪ KHÓA DỌC</span><div>{game.keyword.split("").map((c, i) => <b key={i}>{verticalRevealed ? c : "?"}</b>)}</div><small>{verticalRevealed ? "Đã mở từ khóa" : "Bấm để mở"}</small></button>
         </div>
 
         <aside className="question-card">
-          {active === null ? <div className="empty-state"><span>?</span><h3>Sẵn sàng khám phá?</h3><p>Nhấn vào một hàng trên bảng ô chữ để bắt đầu câu hỏi.</p></div> : <>
-            <div className="question-meta"><span>CÂU {active + 1} / {game.questions.length}</span><div className={`timer ${seconds <= 10 ? "urgent" : ""}`}><b>{seconds}</b><small>GIÂY</small></div></div>
-            <div className="timer-track"><i style={{ width: `${seconds / 45 * 100}%` }} /></div>
+          {active === null ? <div className="empty-state"><span>?</span><h3>Sẵn sàng khám phá?</h3><p>Nhấn vào một hàng ngang để xem câu hỏi và mở đáp án.</p></div> : <>
+            <div className="question-meta"><span>CÂU {active + 1} / {game.questions.length}</span><span className="opened-label">ĐÃ MỞ</span></div>
             <h3>{game.questions[active].clue}</h3>
-            <p className="hint">Đáp án gồm <strong>{game.questions[active].answer.length} chữ cái</strong>, viết liền không dấu.</p>
-            <form onSubmit={submit}>
-              <label htmlFor="answer">CÂU TRẢ LỜI</label>
-              <input ref={inputRef} id="answer" value={answer} onChange={e => setAnswer(e.target.value)} placeholder="Nhập đáp án..." autoComplete="off" disabled={revealed(active)} />
-              <button disabled={!answer.trim() || revealed(active)}>KIỂM TRA ĐÁP ÁN <span>→</span></button>
-            </form>
-            {message && <div className={`message ${solved.has(active) ? "good" : ""}`}>{message}</div>}
+            <p className="hint">Đáp án gồm <strong>{game.questions[active].answer.length} chữ cái</strong>.</p>
+            <div className="answer-display"><small>ĐÁP ÁN HÀNG NGANG</small><strong>{game.questions[active].answer}</strong></div>
           </>}
         </aside>
       </section>
-
-      {completed && <div className="celebration"><div><span>★</span><h2>Xuất sắc!</h2><p>Anh đã giải được từ khóa <strong>{game.keyword}</strong></p><button onClick={() => reset()}>CHƠI LẠI</button></div></div>}
     </main>
   );
 }
